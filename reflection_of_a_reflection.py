@@ -31,6 +31,16 @@ CANVAS_BORDERS = [
 BRAIN_CURVES = [ [[298, 320],[295, 345],[282, 350],[263, 329],[252, 297],[250, 275],[207, 276],[167, 263],[153, 242],[151, 227]] , [[192, 237],[216, 222],[222, 207],[223, 200],[213, 191],[188, 190],[165, 202],[150, 229],[128, 226],[108, 217],[95, 196],[94, 167],[111, 137],[142, 109],[176, 89],[219, 74],[244, 70],[281, 72],[310, 81],[327, 89],[354, 105],[380, 131],[393, 151],[408, 190],[407, 233],[391, 263],[367, 279],[371, 285],[367, 298],[341, 317],[313, 321],[298, 321],[278, 306],[275, 293],[289, 283],[313, 283],[334, 282],[337, 275]] , [[373, 189],[362, 213],[347, 228],[308, 238],[267, 233],[255, 230],[217, 222]] , [[256, 231],[258, 221],[268, 210]] , [[222, 200],[241, 186],[264, 175],[282, 174],[303, 179],[309, 185]] , [[290, 174],[272, 160],[269, 147],[274, 130]] , [[327, 90],[308, 84],[291, 90],[273, 107]] , [[243, 72],[223, 83],[214, 102],[211, 120]] , [[198, 121],[212, 121],[231, 129]] , [[178, 90],[161, 113],[158, 139],[160, 158]] , [[143, 167],[160, 159],[174, 161]] ]
 # fmt: on
 
+MIRROR_CURVES = [
+    [
+        [50, 50],
+        [500, 200],
+        [500, 600],
+        [50, 750],
+        [50, 50],
+    ]
+]
+
 image = 255 * np.ones(shape=[IMAGE_WIDTH, IMAGE_HEIGHT, 3], dtype=np.uint8)
 
 # (x,y,scale) parameters are expressed in virtual canvas (CANVAS_WIDTH,CANVAS_HEIGHT)
@@ -89,15 +99,26 @@ def drawBrainLevel(canvas_x, canvas_y, canvas_scale, canvas_flipped):
         CANVAS_BORDERS, 0, 0, 1, canvas_x, canvas_y, canvas_scale, canvas_flipped
     )
     drawCurves(
+        CANVAS_BORDERS, 480, 90, 1 / 3, canvas_x, canvas_y, canvas_scale, canvas_flipped
+    )
+    drawCurves(
         BRAIN_CURVES, -30, 420, 1, canvas_x, canvas_y, canvas_scale, canvas_flipped
     )
     drawEllipse(430, 560, 20, 20, canvas_x, canvas_y, canvas_scale, canvas_flipped)
     drawEllipse(500, 480, 40, 40, canvas_x, canvas_y, canvas_scale, canvas_flipped)
-    drawEllipse(650, 220, 350, 200, canvas_x, canvas_y, canvas_scale, canvas_flipped)
+    drawEllipse(650, 220, 340, 200, canvas_x, canvas_y, canvas_scale, canvas_flipped)
 
 
-drawBrainLevel(0, 0, 1, False)
-drawBrainLevel(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 8, 1 / 3, True)
+def drawMirrorLevel(canvas_x, canvas_y, canvas_scale, canvas_flipped):
+    drawCurves(
+        CANVAS_BORDERS, 0, 0, 1, canvas_x, canvas_y, canvas_scale, canvas_flipped
+    )
+    drawCurves(MIRROR_CURVES, 0, 0, 1, canvas_x, canvas_y, canvas_scale, canvas_flipped)
+    drawBrainLevel(110, 260, 1 / 3, True)
+    drawBrainLevel(560, 260, 1 / 3, False)
+
+
+drawMirrorLevel(0, 0, 1, False)
 
 
 cv.imshow("reflection of a reflection", image)

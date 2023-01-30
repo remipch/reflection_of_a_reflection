@@ -7,15 +7,15 @@ CANVAS_WIDTH = 1000
 CANVAS_HEIGHT = 800
 
 # Output image resolution
-IMAGE_WIDTH = 512
-IMAGE_HEIGHT = 512
+IMAGE_WIDTH = 800
+IMAGE_HEIGHT = 600
 
 IMAGE_SCALE = IMAGE_WIDTH / CANVAS_WIDTH
 
 BACKGROUND_COLOR = (255, 255, 255)
 LINE_COLOR = (5, 5, 5)
 
-image = np.zeros(shape=[IMAGE_WIDTH, IMAGE_HEIGHT, 3], dtype=np.uint8)
+image = np.zeros(shape=[IMAGE_HEIGHT, IMAGE_WIDTH, 3], dtype=np.uint8)
 
 CANVAS_BORDERS = [
     [
@@ -102,24 +102,36 @@ def computeOffsetToRecenter(next_level_x, canvas_scale):
     )
 
 
-def drawBrainLevel(canvas_x, canvas_y, canvas_scale, canvas_flipped):
-    drawCurves(
-        CANVAS_BORDERS, 0, 0, 1, canvas_x, canvas_y, canvas_scale, canvas_flipped
-    )
-    drawCurves(
-        CANVAS_BORDERS, 480, 90, 1 / 3, canvas_x, canvas_y, canvas_scale, canvas_flipped
-    )
+def drawBrainLevel(canvas_x, canvas_y, canvas_scale, canvas_flipped, level_index):
+    next_level_x = 480
+    next_level_y = 90
+
+    if canvas_flipped:
+        next_level_x = CANVAS_WIDTH - next_level_x - CANVAS_WIDTH / INTER_LEVEL_SCALE
+
+    if canvas_scale > 1:
+        canvas_x += computeOffsetToRecenter(next_level_x, canvas_scale)
+        canvas_y += computeOffsetToRecenter(next_level_y, canvas_scale)
+
+    next_level_x = canvas_x + next_level_x * canvas_scale
+    next_level_y = canvas_y + next_level_y * canvas_scale
+
     drawCurves(
         BRAIN_CURVES, -30, 420, 1, canvas_x, canvas_y, canvas_scale, canvas_flipped
     )
     drawEllipse(430, 560, 20, 20, canvas_x, canvas_y, canvas_scale, canvas_flipped)
     drawEllipse(500, 480, 40, 40, canvas_x, canvas_y, canvas_scale, canvas_flipped)
     drawEllipse(650, 220, 340, 200, canvas_x, canvas_y, canvas_scale, canvas_flipped)
+    drawLevel(
+        next_level_x,
+        next_level_y,
+        canvas_scale / INTER_LEVEL_SCALE,
+        canvas_flipped,
+        level_index + 1,
+    )
 
 
-def drawMirrorLevel(canvas_x, canvas_y, canvas_scale, canvas_flipped):
-    if canvas_scale < MINIMAL_LEVEL_SCALE:
-        return
+def drawMirrorLevel(canvas_x, canvas_y, canvas_scale, canvas_flipped, level_index):
     next_level_flipped_x = 110
     next_level_x = 620
     next_level_y = 260
@@ -133,19 +145,10 @@ def drawMirrorLevel(canvas_x, canvas_y, canvas_scale, canvas_flipped):
     if canvas_scale > 1:
         canvas_x += computeOffsetToRecenter(next_level_flipped_x, canvas_scale)
         canvas_y += computeOffsetToRecenter(next_level_y, canvas_scale)
+
     next_level_flipped_x = canvas_x + next_level_flipped_x * canvas_scale
     next_level_x = canvas_x + next_level_x * canvas_scale
     next_level_y = canvas_y + next_level_y * canvas_scale
-    drawCurves(
-        CANVAS_BORDERS,
-        0,
-        0,
-        1,
-        canvas_x,
-        canvas_y,
-        canvas_scale,
-        canvas_flipped,
-    )
     drawCurves(
         MIRROR_CURVES,
         0,
@@ -156,27 +159,52 @@ def drawMirrorLevel(canvas_x, canvas_y, canvas_scale, canvas_flipped):
         canvas_scale,
         canvas_flipped,
     )
-    drawMirrorLevel(
+    drawLevel(
         next_level_flipped_x,
         next_level_y,
         canvas_scale / INTER_LEVEL_SCALE,
         not canvas_flipped,
+        level_index + 1,
     )
-    drawMirrorLevel(
-        next_level_x, next_level_y, canvas_scale / INTER_LEVEL_SCALE, canvas_flipped
+    drawLevel(
+        next_level_x,
+        next_level_y,
+        canvas_scale / INTER_LEVEL_SCALE,
+        canvas_flipped,
+        level_index + 1,
     )
+
+
+# return True if this level flip the next one
+def drawLevel(canvas_x, canvas_y, canvas_scale, canvas_flipped, level_index):
+    if canvas_scale < MINIMAL_LEVEL_SCALE:
+        return
+
+    level_type = LEVELS[level_index % len(LEVELS)]
+
+    if level_type == BRAIN_LEVEL:
+        drawBrainLevel(canvas_x, canvas_y, canvas_scale, canvas_flipped, level_index)
+        return False
+    elif level_type == MIRROR_LEVEL:
+        drawMirrorLevel(canvas_x, canvas_y, canvas_scale, canvas_flipped, level_index)
+        return True
+    assert False, "Unkown level type"
+
+
+# Definition of successive level list (as a string because it's concise and convenient)
+BRAIN_LEVEL = "B"
+MIRROR_LEVEL = "M"
+LEVELS = "BBMMBMBMMB"
 
 INTER_LEVEL_SCALE = 3
-FRAME_PER_LEVEL = 8
-FRAME_DURATION_MS = 0  # set 0 to wait a key press
+FRAME_PER_LEVEL = 80
+FRAME_DURATION_MS = 10  # (set 0 to wait for a key press)
 INTER_FRAME_SCALE = INTER_LEVEL_SCALE / FRAME_PER_LEVEL
-MINIMAL_LEVEL_SCALE = 0.01
-
-frame_index = 0
+MINIMAL_LEVEL_SCALE = 0.005
 
 main_canvas_flipped = False
 
-for main_level_index in range(len(LEVELS)):
+for main_level_index in range(len(LEVELS) * 5):
     for level_frame_index in range(FRAME_PER_LEVEL):
         main_level_scale = (
             1 + (INTER_LEVEL_SCALE - 1) * level_frame_index / FRAME_PER_LEVEL
@@ -186,15 +214,18 @@ for main_level_index in range(len(LEVELS)):
         )
 
         print(
-            f"paint frame {frame_index} ; level {main_level_index} ; scale {main_level_scale}",
+            f"paint level {main_level_index} at scale {main_level_scale}",
             flush=True,
         )
-        drawMirrorLevel(0, 0, main_level_scale, main_canvas_flipped)
+        flip_next_level = drawLevel(
+            0, 0, main_level_scale, main_canvas_flipped, main_level_index
+        )
 
         cv.imshow("reflection of a reflection", image)
 
         # Wait and test escape key
         if cv.waitKey(FRAME_DURATION_MS) == 27:
             exit(1)
-        frame_index += 1
-    main_canvas_flipped = not main_canvas_flipped
+
+    if flip_next_level:
+        main_canvas_flipped = not main_canvas_flipped

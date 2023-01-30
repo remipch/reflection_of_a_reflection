@@ -1,11 +1,16 @@
 import cv2 as cv
 import numpy as np
 
+# Virtual canvas size in which levels are drawn
+# they are scaled after that depending on actual level depth and window size
+CANVAS_WIDTH = 1000
+CANVAS_HEIGHT = 800
+
+# Output image resolution
 IMAGE_WIDTH = 512
 IMAGE_HEIGHT = 512
 
-CANVAS_WIDTH = IMAGE_WIDTH
-CANVAS_HEIGHT = 400
+IMAGE_SCALE = IMAGE_WIDTH / CANVAS_WIDTH
 
 LINE_COLOR = (0, 0, 0)
 
@@ -28,8 +33,9 @@ BRAIN_CURVES = [ [[298, 320],[295, 345],[282, 350],[263, 329],[252, 297],[250, 2
 
 image = 255 * np.ones(shape=[IMAGE_WIDTH, IMAGE_HEIGHT, 3], dtype=np.uint8)
 
-# (x,y,scale) parameters are expressed relatively to a canvas of full size (CANVAS_WIDTH,CANVAS_HEIGHT)
+# (x,y,scale) parameters are expressed in virtual canvas (CANVAS_WIDTH,CANVAS_HEIGHT)
 # and 'canvas' parameters are applied after that
+# (canvas_scale=1 means that canvas take whole image width)
 def drawCurves(curves, x, y, scale, canvas_x, canvas_y, canvas_scale, canvas_flipped):
     for curve in curves:
         points = np.array(curve, np.float32)
@@ -39,11 +45,18 @@ def drawCurves(curves, x, y, scale, canvas_x, canvas_y, canvas_scale, canvas_fli
             points = np.float32((CANVAS_WIDTH, 0)) + (points * np.float32((-1, 1)))
         points *= canvas_scale
         points += np.float32((canvas_x, canvas_y))
-        cv.polylines(image, [np.int32(points)], False, LINE_COLOR, lineType=cv.LINE_AA)
+        cv.polylines(
+            image,
+            [np.int32(points * IMAGE_SCALE)],
+            False,
+            LINE_COLOR,
+            lineType=cv.LINE_AA,
+        )
 
 
-# (center,radius) parameters are expressed relatively to a canvas of full size (CANVAS_WIDTH,CANVAS_HEIGHT)
+# (center,radius) parameters are expressed in virtual canvas (CANVAS_WIDTH,CANVAS_HEIGHT)
 # and 'canvas' parameters are applied after that
+# (canvas_scale=1 means that canvas take whole image width)
 def drawEllipse(
     center_x,
     center_y,
@@ -56,14 +69,13 @@ def drawEllipse(
 ):
     if canvas_flipped:
         center_x = CANVAS_WIDTH - center_x
-    center = (np.float32((center_x, center_y)) * canvas_scale) + np.float32(
-        (canvas_x, canvas_y)
-    )
+    center = np.float32((center_x, center_y)) * canvas_scale
+    center += np.float32((canvas_x, canvas_y))
     radius = np.float32((radius_x, radius_y)) * canvas_scale
     cv.ellipse(
         image,
-        np.int32(center),
-        np.int32(radius),
+        np.int32(center * IMAGE_SCALE),
+        np.int32(radius * IMAGE_SCALE),
         0,
         0,
         360,
@@ -72,18 +84,20 @@ def drawEllipse(
     )
 
 
-drawCurves(CANVAS_BORDERS, 0, 0, 1, 0, 0, 1, False)
-drawCurves(BRAIN_CURVES, 0, 0, 0.5, 0, 0, 1, False)
-drawCurves(BRAIN_CURVES, 0, 0, 0.5, 0, 0, 1, True)
+def drawBrainLevel(canvas_x, canvas_y, canvas_scale, canvas_flipped):
+    drawCurves(
+        CANVAS_BORDERS, 0, 0, 1, canvas_x, canvas_y, canvas_scale, canvas_flipped
+    )
+    drawCurves(
+        BRAIN_CURVES, -30, 420, 1, canvas_x, canvas_y, canvas_scale, canvas_flipped
+    )
+    drawEllipse(430, 560, 20, 20, canvas_x, canvas_y, canvas_scale, canvas_flipped)
+    drawEllipse(500, 480, 40, 40, canvas_x, canvas_y, canvas_scale, canvas_flipped)
+    drawEllipse(650, 220, 350, 200, canvas_x, canvas_y, canvas_scale, canvas_flipped)
 
-drawCurves(CANVAS_BORDERS, 0, 0, 1, 100, 200, 0.5, False)
-drawCurves(BRAIN_CURVES, 0, 0, 0.5, 100, 200, 0.5, False)
-drawCurves(BRAIN_CURVES, 0, 0, 0.5, 100, 200, 0.5, True)
 
-drawEllipse(50, 100, 25, 50, 0, 0, 1, False)
-drawEllipse(50, 100, 25, 50, 0, 0, 1, True)
-drawEllipse(50, 100, 25, 50, 100, 200, 0.5, False)
-drawEllipse(50, 100, 25, 50, 100, 200, 0.5, True)
+drawBrainLevel(0, 0, 1, False)
+drawBrainLevel(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 8, 1 / 3, True)
 
 
 cv.imshow("reflection of a reflection", image)

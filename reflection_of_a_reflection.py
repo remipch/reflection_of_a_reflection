@@ -7,8 +7,8 @@ CANVAS_WIDTH = 1000
 CANVAS_HEIGHT = 800
 
 # Output image resolution
-IMAGE_WIDTH = 800
-IMAGE_HEIGHT = 600
+IMAGE_WIDTH = 1000
+IMAGE_HEIGHT = 800
 
 IMAGE_SCALE = IMAGE_WIDTH / CANVAS_WIDTH
 
@@ -194,17 +194,19 @@ def drawLevel(canvas_x, canvas_y, canvas_scale, canvas_flipped, level_index):
 # Definition of successive level list (as a string because it's concise and convenient)
 BRAIN_LEVEL = "B"
 MIRROR_LEVEL = "M"
-LEVELS = "BBMMBMBMMB"
+LEVELS = (
+    "BBMBMB"  # Must have an even number of 'M' to cycle the output images correctly
+)
 
 INTER_LEVEL_SCALE = 3
-FRAME_PER_LEVEL = 80
+FRAME_PER_LEVEL = 30
 FRAME_DURATION_MS = 10  # (set 0 to wait for a key press)
 INTER_FRAME_SCALE = INTER_LEVEL_SCALE / FRAME_PER_LEVEL
 MINIMAL_LEVEL_SCALE = 0.005
 
 main_canvas_flipped = False
 
-for main_level_index in range(len(LEVELS) * 5):
+for main_level_index in range(len(LEVELS)):
     for level_frame_index in range(FRAME_PER_LEVEL):
         main_level_scale = (
             1 + (INTER_LEVEL_SCALE - 1) * level_frame_index / FRAME_PER_LEVEL
@@ -221,6 +223,10 @@ for main_level_index in range(len(LEVELS) * 5):
             0, 0, main_level_scale, main_canvas_flipped, main_level_index
         )
 
+        cv.imwrite(
+            f"output/img{main_level_index*FRAME_PER_LEVEL+level_frame_index:03d}.png",
+            image,
+        )
         cv.imshow("reflection of a reflection", image)
 
         # Wait and test escape key
